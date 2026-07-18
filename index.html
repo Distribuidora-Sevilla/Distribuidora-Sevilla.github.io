@@ -50,10 +50,8 @@
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
       <div>
         <label class="text-xs text-gray-500">Zona</label>
-        <select id="zonaSelect" class="w-full mt-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-600">
-          <option value="">Seleccione una zona...</option>
-        </select>
-        <input id="zonaOtraInput" type="text" placeholder="Escriba la zona" class="w-full mt-2 border border-gray-300 rounded-lg px-3 py-2 text-sm hidden focus:outline-none focus:ring-2 focus:ring-green-600">
+        <input id="zonaInput" type="text" list="zonaSugerencias" placeholder="Ej. La Cruz, La Unión, Pasto..." class="w-full mt-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-600">
+        <datalist id="zonaSugerencias"></datalist>
       </div>
       <div>
         <label class="text-xs text-gray-500">Cliente / Establecimiento</label>
@@ -204,6 +202,7 @@
           <input type="hidden" id="prodEditId">
           <input id="prodName" type="text" placeholder="Nombre del producto" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
           <input id="prodDesc" type="text" placeholder="Descripción (ej. X22 UNID.)" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+          <input id="prodImage" type="text" placeholder="URL de imagen (opcional)" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
           <div class="grid grid-cols-2 gap-2">
             <input id="prodPrice" type="number" placeholder="Precio" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
             <select id="prodCategory" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"></select>
@@ -471,21 +470,12 @@ onSnapshot(doc(db, "settings", "general"), (snap) => {
 
 // ---------- RENDER: ZONAS ----------
 function renderZonaOptions() {
-  const sel = document.getElementById("zonaSelect");
-  const prev = sel.value;
-  sel.innerHTML = '<option value="">Seleccione una zona...</option>' +
-    (settings.zones || []).map(z => `<option value="${z}">${z}</option>`).join("") +
-    '<option value="__otra__">Otra (especificar)</option>';
-  if (prev) sel.value = prev;
+  document.getElementById("zonaSugerencias").innerHTML =
+    (settings.zones || []).map(z => `<option value="${z}"></option>`).join("");
 }
-document.getElementById("zonaSelect").addEventListener("change", (e) => {
-  document.getElementById("zonaOtraInput").classList.toggle("hidden", e.target.value !== "__otra__");
-});
 
 function getZonaValue() {
-  const sel = document.getElementById("zonaSelect").value;
-  if (sel === "__otra__") return document.getElementById("zonaOtraInput").value.trim();
-  return sel;
+  return document.getElementById("zonaInput").value.trim();
 }
 
 // ---------- RENDER: CATEGORY TABS ----------
@@ -518,8 +508,11 @@ function renderProducts() {
   const wrap = document.getElementById("productList");
   document.getElementById("emptyState").classList.toggle("hidden", list.length > 0);
   wrap.innerHTML = list.map(p => `
-    <div class="bg-white border border-gray-200 rounded-xl p-3 flex items-center justify-between gap-3">
-      <div class="min-w-0">
+    <div class="bg-white border border-gray-200 rounded-xl p-3 flex items-center gap-3">
+      <div class="h-14 w-14 rounded-lg bg-gray-100 flex items-center justify-center shrink-0 overflow-hidden">
+        ${p.imageUrl ? `<img src="${p.imageUrl}" alt="${p.name}" class="h-full w-full object-cover">` : `<span class="text-2xl">🧀</span>`}
+      </div>
+      <div class="min-w-0 flex-1">
         <p class="font-semibold text-sm text-gray-800 truncate">${p.name}</p>
         <p class="text-xs text-gray-400 truncate">${p.description || ""}</p>
         <p class="text-green-700 font-bold text-sm mt-1">${money(p.price)}</p>
@@ -770,6 +763,7 @@ function openProductForm(productId) {
     document.getElementById("prodEditId").value = p.id;
     document.getElementById("prodName").value = p.name;
     document.getElementById("prodDesc").value = p.description || "";
+    document.getElementById("prodImage").value = p.imageUrl || "";
     document.getElementById("prodPrice").value = p.price;
     document.getElementById("prodCategory").value = p.categoryId;
     document.getElementById("prodActive").checked = p.active !== false;
@@ -777,6 +771,7 @@ function openProductForm(productId) {
     document.getElementById("prodEditId").value = "";
     document.getElementById("prodName").value = "";
     document.getElementById("prodDesc").value = "";
+    document.getElementById("prodImage").value = "";
     document.getElementById("prodPrice").value = "";
     document.getElementById("prodActive").checked = true;
   }
@@ -788,13 +783,14 @@ document.getElementById("cancelProductBtn").addEventListener("click", () => {
 document.getElementById("saveProductBtn").addEventListener("click", async () => {
   const name = document.getElementById("prodName").value.trim();
   const description = document.getElementById("prodDesc").value.trim();
+  const imageUrl = document.getElementById("prodImage").value.trim();
   const price = Number(document.getElementById("prodPrice").value);
   const categoryId = document.getElementById("prodCategory").value;
   const active = document.getElementById("prodActive").checked;
   if (!name || !price || !categoryId) return toast("Completa nombre, precio y categoría.");
   const editId = document.getElementById("prodEditId").value;
   const id = editId || (slugify(name) + "-" + Date.now().toString(36));
-  await setDoc(doc(db, "products", id), { name, description, price, categoryId, active });
+  await setDoc(doc(db, "products", id), { name, description, price, categoryId, active, imageUrl });
   document.getElementById("adminProductForm").classList.add("hidden");
   toast("Producto guardado.");
 });
