@@ -1,0 +1,831 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CMG Distribuidora Sevilla - Pedidos</title>
+<meta name="description" content="Plataforma de pedidos para clientes de CMG Distribuidora Sevilla">
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; }
+  ::-webkit-scrollbar { height: 6px; width: 6px; }
+  ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 999px; }
+  .cat-pill { white-space: nowrap; }
+  .cat-pill.active { background-color: #15803d; color: #fff; }
+  .modal-backdrop { background: rgba(15, 23, 42, .55); }
+  input[type=number]::-webkit-inner-spin-button { opacity: 1; }
+</style>
+</head>
+<body class="bg-gray-50 text-gray-800 pb-28 min-h-screen">
+
+<!-- LOADING -->
+<div id="loading" class="fixed inset-0 bg-white z-[100] flex items-center justify-center">
+  <div class="text-center">
+    <div class="animate-spin h-10 w-10 border-4 border-green-600 border-t-transparent rounded-full mx-auto mb-3"></div>
+    <p class="text-gray-500 text-sm">Cargando catálogo...</p>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast" class="fixed bottom-24 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-sm px-4 py-2 rounded-lg shadow-lg z-[90] hidden"></div>
+
+<!-- HEADER -->
+<header class="bg-green-700 text-white sticky top-0 z-30 shadow">
+  <div class="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
+    <div class="min-w-0">
+      <h1 id="businessNameEl" class="text-lg font-bold leading-tight truncate">CMG Distribuidora Sevilla</h1>
+      <p class="text-xs text-green-100">Catálogo y pedidos para tiendas</p>
+    </div>
+    <button id="openCartBtn" class="relative bg-white/15 hover:bg-white/25 rounded-full h-11 w-11 flex items-center justify-center text-xl shrink-0">
+      🛒
+      <span id="cartCount" class="absolute -top-1 -right-1 bg-yellow-400 text-green-900 text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center hidden">0</span>
+    </button>
+  </div>
+</header>
+
+<!-- DATOS DEL PEDIDO -->
+<div class="max-w-5xl mx-auto px-4 pt-4">
+  <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+    <p class="text-sm font-semibold text-gray-700 mb-2">Datos del pedido</p>
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div>
+        <label class="text-xs text-gray-500">Zona</label>
+        <select id="zonaSelect" class="w-full mt-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-600">
+          <option value="">Seleccione una zona...</option>
+        </select>
+        <input id="zonaOtraInput" type="text" placeholder="Escriba la zona" class="w-full mt-2 border border-gray-300 rounded-lg px-3 py-2 text-sm hidden focus:outline-none focus:ring-2 focus:ring-green-600">
+      </div>
+      <div>
+        <label class="text-xs text-gray-500">Cliente / Establecimiento</label>
+        <input id="clienteInput" type="text" placeholder="Ej. La Castellana" class="w-full mt-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-600">
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- BUSCADOR -->
+<div class="max-w-5xl mx-auto px-4 pt-3">
+  <input id="searchInput" type="text" placeholder="🔎 Buscar producto..." class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-600">
+</div>
+
+<!-- CATEGORIAS -->
+<div class="max-w-5xl mx-auto px-4 pt-3">
+  <div id="categoryTabs" class="flex gap-2 overflow-x-auto pb-1"></div>
+</div>
+
+<!-- PRODUCTOS -->
+<main class="max-w-5xl mx-auto px-4 py-4">
+  <div id="productList" class="grid grid-cols-1 sm:grid-cols-2 gap-3"></div>
+  <p id="emptyState" class="text-center text-gray-400 text-sm py-10 hidden">No hay productos que coincidan.</p>
+</main>
+
+<!-- BOTONES FLOTANTES -->
+<div class="fixed bottom-4 right-4 flex flex-col gap-3 z-40">
+  <button id="openNovedadBtn" title="Reportar novedad" class="bg-amber-500 hover:bg-amber-600 text-white rounded-full h-12 w-12 shadow-lg flex items-center justify-center text-xl">⚠️</button>
+</div>
+<div class="fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-gray-200 shadow-[0_-4px_10px_rgba(0,0,0,0.05)]">
+  <div class="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
+    <div>
+      <p class="text-xs text-gray-500">Total pedido</p>
+      <p id="footerTotal" class="text-lg font-bold text-green-700">$0</p>
+    </div>
+    <button id="footerCartBtn" class="bg-green-700 hover:bg-green-800 text-white font-semibold px-5 py-2.5 rounded-lg text-sm flex items-center gap-2">
+      Ver pedido <span id="footerCount" class="bg-white/20 rounded-full px-2 py-0.5 text-xs">0</span>
+    </button>
+  </div>
+</div>
+
+<!-- CART MODAL -->
+<div id="cartModal" class="fixed inset-0 z-50 hidden">
+  <div class="absolute inset-0 modal-backdrop" data-close-cart></div>
+  <div class="absolute bottom-0 left-0 right-0 sm:top-0 sm:right-0 sm:left-auto sm:h-full sm:w-full sm:max-w-md bg-white rounded-t-2xl sm:rounded-none max-h-[85vh] sm:max-h-full flex flex-col">
+    <div class="p-4 border-b border-gray-200 flex items-center justify-between">
+      <h2 class="font-bold text-lg">Tu pedido</h2>
+      <button data-close-cart class="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
+    </div>
+    <div id="cartItems" class="flex-1 overflow-y-auto p-4 space-y-3"></div>
+    <div class="p-4 border-t border-gray-200 space-y-3">
+      <div class="flex items-center justify-between font-bold text-lg">
+        <span>Total</span>
+        <span id="cartTotal">$0</span>
+      </div>
+      <button id="sendOrderBtn" class="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 rounded-lg flex items-center justify-center gap-2">
+        Enviar pedido por WhatsApp 📲
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- NOVEDAD MODAL -->
+<div id="novedadModal" class="fixed inset-0 z-50 hidden">
+  <div class="absolute inset-0 modal-backdrop" data-close-novedad></div>
+  <div class="absolute inset-x-0 bottom-0 sm:inset-0 sm:m-auto sm:h-fit sm:max-w-md bg-white rounded-t-2xl sm:rounded-2xl max-h-[90vh] overflow-y-auto">
+    <div class="p-4 border-b border-gray-200 flex items-center justify-between">
+      <h2 class="font-bold text-lg">Reportar novedad</h2>
+      <button data-close-novedad class="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
+    </div>
+    <div class="p-4 space-y-3">
+      <p class="text-xs text-gray-500">Usa esto para reportar un producto con daño (ej. hongueado), no para productos vencidos.</p>
+      <div>
+        <label class="text-xs text-gray-500">Zona</label>
+        <input id="novZona" type="text" disabled class="w-full mt-1 border border-gray-200 bg-gray-100 rounded-lg px-3 py-2 text-sm">
+      </div>
+      <div>
+        <label class="text-xs text-gray-500">Cliente / Establecimiento</label>
+        <input id="novCliente" type="text" disabled class="w-full mt-1 border border-gray-200 bg-gray-100 rounded-lg px-3 py-2 text-sm">
+      </div>
+      <div>
+        <label class="text-xs text-gray-500">Producto</label>
+        <select id="novProducto" class="w-full mt-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-600"></select>
+      </div>
+      <div>
+        <label class="text-xs text-gray-500">Cantidad</label>
+        <input id="novCantidad" type="number" min="1" value="1" class="w-full mt-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-600">
+      </div>
+      <div>
+        <label class="text-xs text-gray-500">Motivo</label>
+        <select id="novMotivo" class="w-full mt-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-600">
+          <option>Hongueado / Dañado</option>
+          <option>Faltante en el pedido</option>
+          <option>Otro</option>
+        </select>
+      </div>
+      <div>
+        <label class="text-xs text-gray-500">Nota (opcional)</label>
+        <textarea id="novNota" rows="2" class="w-full mt-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-600"></textarea>
+      </div>
+      <button id="sendNovedadBtn" class="w-full bg-amber-500 hover:bg-amber-600 text-white font-semibold py-3 rounded-lg">
+        Enviar novedad por WhatsApp 📲
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- FOOTER -->
+<footer class="max-w-5xl mx-auto px-4 py-6 text-center">
+  <button id="openAdminBtn" class="text-xs text-gray-400 hover:text-gray-600 underline">Panel de administrador</button>
+</footer>
+
+<!-- ADMIN MODAL -->
+<div id="adminModal" class="fixed inset-0 z-50 hidden">
+  <div class="absolute inset-0 modal-backdrop" data-close-admin></div>
+  <div class="absolute inset-0 sm:inset-6 sm:m-auto sm:h-fit sm:max-h-[90vh] sm:max-w-3xl bg-white sm:rounded-2xl overflow-y-auto">
+    <div class="p-4 border-b border-gray-200 flex items-center justify-between sticky top-0 bg-white z-10">
+      <h2 class="font-bold text-lg">Panel de administrador</h2>
+      <div class="flex items-center gap-3">
+        <button id="logoutBtn" class="text-xs text-red-500 hover:underline hidden">Cerrar sesión</button>
+        <button data-close-admin class="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
+      </div>
+    </div>
+
+    <!-- LOGIN -->
+    <div id="adminLogin" class="p-6 max-w-sm mx-auto">
+      <p class="text-sm text-gray-500 mb-4">Inicia sesión para editar productos, categorías y ajustes.</p>
+      <div class="space-y-3">
+        <input id="loginEmail" type="email" placeholder="Correo" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+        <input id="loginPassword" type="password" placeholder="Contraseña" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+        <button id="loginBtn" class="w-full bg-green-700 hover:bg-green-800 text-white font-semibold py-2.5 rounded-lg">Ingresar</button>
+        <p id="loginError" class="text-xs text-red-500 hidden"></p>
+      </div>
+    </div>
+
+    <!-- DASHBOARD -->
+    <div id="adminDashboard" class="hidden">
+      <div class="flex gap-2 px-4 pt-4 border-b border-gray-200">
+        <button data-admin-tab="productos" class="admin-tab px-3 py-2 text-sm font-semibold border-b-2 border-green-700 text-green-700">Productos</button>
+        <button data-admin-tab="categorias" class="admin-tab px-3 py-2 text-sm font-semibold border-b-2 border-transparent text-gray-500">Categorías</button>
+        <button data-admin-tab="ajustes" class="admin-tab px-3 py-2 text-sm font-semibold border-b-2 border-transparent text-gray-500">Ajustes</button>
+      </div>
+
+      <!-- PRODUCTOS TAB -->
+      <div id="tabProductos" class="admin-tab-panel p-4">
+        <button id="newProductBtn" class="mb-3 bg-green-700 hover:bg-green-800 text-white text-sm font-semibold px-4 py-2 rounded-lg">+ Nuevo producto</button>
+        <div id="adminProductForm" class="hidden bg-gray-50 border border-gray-200 rounded-lg p-4 mb-4 space-y-2">
+          <input type="hidden" id="prodEditId">
+          <input id="prodName" type="text" placeholder="Nombre del producto" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+          <input id="prodDesc" type="text" placeholder="Descripción (ej. X22 UNID.)" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+          <div class="grid grid-cols-2 gap-2">
+            <input id="prodPrice" type="number" placeholder="Precio" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+            <select id="prodCategory" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"></select>
+          </div>
+          <label class="flex items-center gap-2 text-sm text-gray-600">
+            <input id="prodActive" type="checkbox" checked> Visible para clientes
+          </label>
+          <div class="flex gap-2">
+            <button id="saveProductBtn" class="bg-green-700 hover:bg-green-800 text-white text-sm font-semibold px-4 py-2 rounded-lg">Guardar</button>
+            <button id="cancelProductBtn" class="text-sm text-gray-500 px-4 py-2">Cancelar</button>
+          </div>
+        </div>
+        <div class="mb-3">
+          <input id="adminProductSearch" type="text" placeholder="Buscar producto..." class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+        </div>
+        <div id="adminProductList" class="space-y-2"></div>
+      </div>
+
+      <!-- CATEGORIAS TAB -->
+      <div id="tabCategorias" class="admin-tab-panel p-4 hidden">
+        <div class="flex gap-2 mb-4">
+          <input id="newCategoryInput" type="text" placeholder="Nueva categoría" class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm">
+          <button id="addCategoryBtn" class="bg-green-700 hover:bg-green-800 text-white text-sm font-semibold px-4 py-2 rounded-lg">Agregar</button>
+        </div>
+        <div id="adminCategoryList" class="space-y-2"></div>
+      </div>
+
+      <!-- AJUSTES TAB -->
+      <div id="tabAjustes" class="admin-tab-panel p-4 hidden">
+        <div class="max-w-md space-y-4">
+          <div>
+            <label class="text-xs text-gray-500">Nombre del negocio</label>
+            <input id="setBusinessName" type="text" class="w-full mt-1 border border-gray-300 rounded-lg px-3 py-2 text-sm">
+          </div>
+          <div>
+            <label class="text-xs text-gray-500">WhatsApp para recibir pedidos (con indicativo, ej. 573004214620)</label>
+            <input id="setWhatsapp" type="text" class="w-full mt-1 border border-gray-300 rounded-lg px-3 py-2 text-sm">
+          </div>
+          <div>
+            <label class="text-xs text-gray-500">Zonas (separadas por coma)</label>
+            <textarea id="setZonas" rows="2" class="w-full mt-1 border border-gray-300 rounded-lg px-3 py-2 text-sm"></textarea>
+          </div>
+          <button id="saveSettingsBtn" class="bg-green-700 hover:bg-green-800 text-white text-sm font-semibold px-4 py-2 rounded-lg">Guardar ajustes</button>
+          <hr class="my-4">
+          <div>
+            <p class="text-sm font-semibold text-gray-700 mb-1">Catálogo inicial</p>
+            <p class="text-xs text-gray-500 mb-2">Carga los 114 productos de ejemplo (Aderezos, Quesos, Leche, Yogur, etc). Es seguro usarlo varias veces, no duplica productos.</p>
+            <button id="seedBtn" class="bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold px-4 py-2 rounded-lg">Cargar catálogo inicial</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import {
+  getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot, writeBatch, getDocs
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import {
+  getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAvoCzQ9OwZzIT1SEZ3l3u7M6WyZQTHy20",
+  authDomain: "distribuidora-sevilla.firebaseapp.com",
+  projectId: "distribuidora-sevilla",
+  storageBucket: "distribuidora-sevilla.firebasestorage.app",
+  messagingSenderId: "756850467814",
+  appId: "1:756850467814:web:3497a094c040bccd66ac27",
+  measurementId: "G-2RPGTMKD7B"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const auth = getAuth(app);
+
+const DEFAULT_SETTINGS = {
+  businessName: "CMG Distribuidora Sevilla",
+  whatsappNumber: "573004214620",
+  zones: ["La Cruz", "La Unión", "Pasto"]
+};
+
+// ---------- SEED DATA (catálogo extraído del PDF) ----------
+const SEED_CATEGORIES = [
+  "Aderezos", "Arepas", "Chorizos", "Costillas y Carnes", "Glaciados",
+  "Hamburguesas", "Jamón", "Leche", "Mortadela", "Pan", "Quesos",
+  "Salchichas", "Salchichón", "Salsas Kilo", "Salsas Sobre", "Salsas X4000", "Yogur"
+];
+
+const SEED_PRODUCTS = [
+  ["Aderezos", "Ají Picante", "X170 GR.", 2400],
+  ["Aderezos", "Ají Picante X400", "X400 GR.", 3800],
+  ["Aderezos", "Vinagre X1000", "X1000 ML.", 4600],
+  ["Aderezos", "Vinagre X500", "X500 ML.", 2800],
+
+  ["Arepas", "Arepa con Queso", "450 GR. X5 UNID.", 5400],
+  ["Arepas", "Arepa Grande", "450GR X5 UNID.", 2800],
+  ["Arepas", "Arepa Mediana", "450GR X5 UNID.", 2700],
+  ["Arepas", "Arepa Pequeña", "X20 UNIDADES", 2700],
+
+  ["Chorizos", "Chorizo Coria X15", "X15", 19900],
+  ["Chorizos", "Chorizo Coria X8", "X8", 17200],
+  ["Chorizos", "Chorizo Paisa X10", "X10", 6800],
+  ["Chorizos", "Chorizo Paisa X12", "X12", 10400],
+  ["Chorizos", "Chorizo Paisa X6", "X6", 4200],
+  ["Chorizos", "Chorizo Parrillero", "X14 UNID.", 18900],
+  ["Chorizos", "Chorizo Suizo", "X8", 17200],
+  ["Chorizos", "Parrillero Mini", "X5 UNIDADES", 3600],
+  ["Chorizos", "Picada", "X500 GR.", 5500],
+
+  ["Costillas y Carnes", "Cabello de Ángel Ripio", "", 6500],
+  ["Costillas y Carnes", "Carne Ahumada", "", 13500],
+  ["Costillas y Carnes", "Chepes Tocineta", "", 9500],
+  ["Costillas y Carnes", "Costilla Lonja", "Kilo", 23800],
+  ["Costillas y Carnes", "Costilla Superior", "", 12600],
+  ["Costillas y Carnes", "Costilla Villa", "", 13000],
+  ["Costillas y Carnes", "Costillas Titos", "350 GR", 10800],
+  ["Costillas y Carnes", "Ripio", "", 7000],
+  ["Costillas y Carnes", "Tocineta", "", 11500],
+
+  ["Glaciados", "Glaciado Fresa", "", 8000],
+  ["Glaciados", "Glaciado Mora", "", 8000],
+
+  ["Hamburguesas", "Hamburguesa", "X6 UNID.", 7100],
+  ["Hamburguesas", "M. Hamburguesa X12", "X12 UNID.", 7100],
+  ["Hamburguesas", "M. Hamburguesa X5", "X5 UNID.", 4100],
+
+  ["Jamón", "Jamón", "", 5800],
+  ["Jamón", "Jamón 1/2", "", 3100],
+
+  ["Leche", "Achocolatada", "X180 ML", 2100],
+  ["Leche", "Arequipe", "X220 GR.", 5000],
+  ["Leche", "Avena", "", 1600],
+  ["Leche", "Avena Litro", "", 5100],
+  ["Leche", "Crema de Leche", "X280 GR.", 6300],
+  ["Leche", "Leche Andinos", "X1100 ML.", 4700],
+  ["Leche", "Leche Condensada", "X300 GR.", 6200],
+  ["Leche", "Leche Deslactosada", "", 4700],
+  ["Leche", "Leche Deslactosada Tetrapack", "X900 ML", 4500],
+  ["Leche", "Leche Entera Tetrapack", "X900 ML.", 4500],
+  ["Leche", "Leche Extracontenido", "X1000 ML.", 3900],
+  ["Leche", "Leche San Fernando", "X1100 ML.", 4400],
+  ["Leche", "Leche X200", "X200 ML.", 1400],
+  ["Leche", "Leche X400", "X400 ML.", 2000],
+  ["Leche", "Leche X900", "X900 ML.", 3900],
+  ["Leche", "Tampico Litro", "1 Litro", 3900],
+  ["Leche", "Tampico Pitillo", "X240 ML", 1300],
+  ["Leche", "Tampico", "X500 ML.", 2600],
+
+  ["Mortadela", "Mortadela", "X22 UNID.", 4800],
+
+  ["Pan", "Pan Cubano", "X10 UNID.", 5900],
+  ["Pan", "Pan Hamburguesa", "X10 UNID.", 4500],
+  ["Pan", "Pan Perro", "X12 UNID.", 4500],
+  ["Pan", "Pan Tajado", "X24 UNID.", 3400],
+
+  ["Quesos", "Bandeja Bocadillo Matrimonio", "X10 UNIDADES", 10500],
+  ["Quesos", "Bandeja Quesadillo", "X5 UNIDADES", 10000],
+  ["Quesos", "Bloque Loncha", "X120", 52000],
+  ["Quesos", "Doble Crema Blinbi", "X400 GR", 10700],
+  ["Quesos", "Queso Blinbi Tajado", "X22 UNID.", 10000],
+  ["Quesos", "Queso Bloque Blinbi", "", 52000],
+  ["Quesos", "Queso Bloque Power", "X2400 GR.", 52000],
+  ["Quesos", "Queso Bloque", "X900 GR.", 21000],
+  ["Quesos", "Queso Doble Crema Power", "X450 GR.", 10900],
+  ["Quesos", "Queso Doble Crema", "X220 GR.", 5700],
+  ["Quesos", "Queso Power Milk Tajado", "X22 UNID.", 10600],
+  ["Quesos", "Queso Tajado", "X11 UNID.", 6000],
+  ["Quesos", "Tajado Media Blinbi", "", 6000],
+
+  ["Salchichas", "Salchicha Llanera", "X10 UNID.", 5800],
+  ["Salchichas", "Salchicha Manguera", "", 2400],
+  ["Salchichas", "Salchicha Super Económica", "X12 UNID.", 6400],
+  ["Salchichas", "Salchicha Viena", "X15 UNID", 4300],
+
+  ["Salchichón", "Salchichón Cervecero", "X900 GR.", 8600],
+  ["Salchichón", "Salchichón Económico", "X750 GR.", 5900],
+  ["Salchichón", "Salchichón Mini Pera", "X450 GR.", 4000],
+  ["Salchichón", "Salchichón Mini Pollo X250", "X250 GR.", 2200],
+  ["Salchichón", "Salchichón Mini Pollo X450", "X450 GR.", 4200],
+  ["Salchichón", "Salchichón Pollo", "X900 GR.", 8500],
+  ["Salchichón", "Salchichón Sevillano", "X250 GR.", 2000],
+
+  ["Salsas Kilo", "Salsa Ajo Kilo", "", 7400],
+  ["Salsas Kilo", "Salsa BBQ Kilo", "", 6800],
+  ["Salsas Kilo", "Salsa Especial Kilo", "", 6800],
+  ["Salsas Kilo", "Salsa Kilo Maíz Dulce", "", 7200],
+  ["Salsas Kilo", "Salsa Mayonesa Kilo", "", 7000],
+  ["Salsas Kilo", "Salsa Mostaza Kilo", "", 5500],
+  ["Salsas Kilo", "Salsa Piña Kilo", "", 4600],
+  ["Salsas Kilo", "Salsa Rosada Kilo", "", 6200],
+  ["Salsas Kilo", "Salsa Tomate Kilo", "", 4500],
+
+  ["Salsas Sobre", "Tomate Sobre", "X100", 6900],
+
+  ["Salsas X4000", "Ají Verde", "X3000 GR.", 18500],
+  ["Salsas X4000", "Salsa BBQ", "X4000", 21300],
+  ["Salsas X4000", "Salsa de Ajo", "X4000", 24200],
+  ["Salsas X4000", "Salsa Especial", "X4000", 20800],
+  ["Salsas X4000", "Salsa Mayonesa", "X4000", 20800],
+  ["Salsas X4000", "Salsa Mostaza", "X4000", 16200],
+  ["Salsas X4000", "Salsa Piña", "X4000", 13400],
+  ["Salsas X4000", "Salsa Rosada", "X4000", 19500],
+  ["Salsas X4000", "Salsa Tomate", "X4000", 13800],
+
+  ["Yogur", "Cereal", "", 2800],
+  ["Yogur", "Garrafa Yogur", "2 Litros", 10500],
+  ["Yogur", "Yogur Bolsa Chambú", "X8", 7400],
+  ["Yogur", "Yogur Bolsa Andinos", "X8", 7400],
+  ["Yogur", "Yogur Garrafa", "1 Litro", 7000],
+  ["Yogur", "Yogur Vaso", "", 1600]
+];
+
+function slugify(str) {
+  return str.toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+}
+
+// ---------- STATE ----------
+let categories = [];
+let products = [];
+let settings = { ...DEFAULT_SETTINGS };
+let cart = {}; // productId -> qty
+let currentCategory = "all";
+let currentUser = null;
+
+const money = (n) => "$" + Number(n || 0).toLocaleString("es-CO");
+
+function toast(msg) {
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.classList.remove("hidden");
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => t.classList.add("hidden"), 2500);
+}
+
+// ---------- FIRESTORE LISTENERS ----------
+onSnapshot(collection(db, "categories"), (snap) => {
+  categories = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a,b) => (a.order||0) - (b.order||0));
+  renderCategoryTabs();
+  renderAdminCategoryOptions();
+  renderAdminCategoryList();
+  document.getElementById("loading").classList.add("hidden");
+});
+
+onSnapshot(collection(db, "products"), (snap) => {
+  products = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  renderProducts();
+  renderAdminProductList();
+  renderNovedadProductOptions();
+});
+
+onSnapshot(doc(db, "settings", "general"), (snap) => {
+  settings = snap.exists() ? { ...DEFAULT_SETTINGS, ...snap.data() } : { ...DEFAULT_SETTINGS };
+  document.getElementById("businessNameEl").textContent = settings.businessName;
+  document.title = settings.businessName + " - Pedidos";
+  renderZonaOptions();
+  document.getElementById("setBusinessName").value = settings.businessName;
+  document.getElementById("setWhatsapp").value = settings.whatsappNumber;
+  document.getElementById("setZonas").value = (settings.zones || []).join(", ");
+});
+
+// ---------- RENDER: ZONAS ----------
+function renderZonaOptions() {
+  const sel = document.getElementById("zonaSelect");
+  const prev = sel.value;
+  sel.innerHTML = '<option value="">Seleccione una zona...</option>' +
+    (settings.zones || []).map(z => `<option value="${z}">${z}</option>`).join("") +
+    '<option value="__otra__">Otra (especificar)</option>';
+  if (prev) sel.value = prev;
+}
+document.getElementById("zonaSelect").addEventListener("change", (e) => {
+  document.getElementById("zonaOtraInput").classList.toggle("hidden", e.target.value !== "__otra__");
+});
+
+function getZonaValue() {
+  const sel = document.getElementById("zonaSelect").value;
+  if (sel === "__otra__") return document.getElementById("zonaOtraInput").value.trim();
+  return sel;
+}
+
+// ---------- RENDER: CATEGORY TABS ----------
+function renderCategoryTabs() {
+  const wrap = document.getElementById("categoryTabs");
+  const pills = [{ id: "all", name: "Todas" }, ...categories];
+  wrap.innerHTML = pills.map(c => `
+    <button data-cat="${c.id}" class="cat-pill ${currentCategory === c.id ? "active" : ""} bg-white border border-gray-200 text-gray-600 text-sm font-medium px-3 py-1.5 rounded-full">
+      ${c.name}
+    </button>`).join("");
+  wrap.querySelectorAll("[data-cat]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      currentCategory = btn.dataset.cat;
+      document.getElementById("searchInput").value = "";
+      renderCategoryTabs();
+      renderProducts();
+    });
+  });
+}
+
+// ---------- RENDER: PRODUCTS ----------
+function renderProducts() {
+  const search = document.getElementById("searchInput").value.trim().toLowerCase();
+  let list = products.filter(p => p.active !== false);
+  if (search) {
+    list = list.filter(p => p.name.toLowerCase().includes(search));
+  } else if (currentCategory !== "all") {
+    list = list.filter(p => p.categoryId === currentCategory);
+  }
+  const wrap = document.getElementById("productList");
+  document.getElementById("emptyState").classList.toggle("hidden", list.length > 0);
+  wrap.innerHTML = list.map(p => `
+    <div class="bg-white border border-gray-200 rounded-xl p-3 flex items-center justify-between gap-3">
+      <div class="min-w-0">
+        <p class="font-semibold text-sm text-gray-800 truncate">${p.name}</p>
+        <p class="text-xs text-gray-400 truncate">${p.description || ""}</p>
+        <p class="text-green-700 font-bold text-sm mt-1">${money(p.price)}</p>
+      </div>
+      <div class="flex items-center gap-2 shrink-0">
+        ${cart[p.id] ? `
+          <button data-qty-minus="${p.id}" class="h-8 w-8 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold">−</button>
+          <span class="w-5 text-center text-sm font-semibold">${cart[p.id]}</span>
+          <button data-qty-plus="${p.id}" class="h-8 w-8 rounded-full bg-green-700 hover:bg-green-800 text-white font-bold">+</button>
+        ` : `
+          <button data-qty-plus="${p.id}" class="bg-green-700 hover:bg-green-800 text-white text-xs font-semibold px-3 py-2 rounded-lg">Agregar</button>
+        `}
+      </div>
+    </div>
+  `).join("");
+  wrap.querySelectorAll("[data-qty-plus]").forEach(b => b.addEventListener("click", () => changeQty(b.dataset.qtyPlus, 1)));
+  wrap.querySelectorAll("[data-qty-minus]").forEach(b => b.addEventListener("click", () => changeQty(b.dataset.qtyMinus, -1)));
+}
+
+document.getElementById("searchInput").addEventListener("input", renderProducts);
+
+function changeQty(productId, delta) {
+  const next = (cart[productId] || 0) + delta;
+  if (next <= 0) delete cart[productId];
+  else cart[productId] = next;
+  renderProducts();
+  renderCartBadge();
+  renderCartItems();
+}
+
+// ---------- CART ----------
+function cartCountTotal() {
+  return Object.values(cart).reduce((a, b) => a + b, 0);
+}
+function cartMoneyTotal() {
+  return Object.entries(cart).reduce((sum, [id, qty]) => {
+    const p = products.find(x => x.id === id);
+    return sum + (p ? p.price * qty : 0);
+  }, 0);
+}
+function renderCartBadge() {
+  const count = cartCountTotal();
+  const total = cartMoneyTotal();
+  const badge = document.getElementById("cartCount");
+  badge.textContent = count;
+  badge.classList.toggle("hidden", count === 0);
+  document.getElementById("footerCount").textContent = count;
+  document.getElementById("footerTotal").textContent = money(total);
+}
+function renderCartItems() {
+  const wrap = document.getElementById("cartItems");
+  const entries = Object.entries(cart);
+  if (entries.length === 0) {
+    wrap.innerHTML = `<p class="text-center text-gray-400 text-sm py-10">Tu pedido está vacío.</p>`;
+  } else {
+    wrap.innerHTML = entries.map(([id, qty]) => {
+      const p = products.find(x => x.id === id);
+      if (!p) return "";
+      return `
+      <div class="flex items-center justify-between gap-3 border-b border-gray-100 pb-3">
+        <div class="min-w-0">
+          <p class="font-medium text-sm truncate">${p.name}</p>
+          <p class="text-xs text-gray-400">${money(p.price)} c/u</p>
+        </div>
+        <div class="flex items-center gap-2 shrink-0">
+          <button data-qty-minus="${id}" class="h-7 w-7 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold">−</button>
+          <span class="w-5 text-center text-sm font-semibold">${qty}</span>
+          <button data-qty-plus="${id}" class="h-7 w-7 rounded-full bg-green-700 hover:bg-green-800 text-white font-bold">+</button>
+        </div>
+      </div>`;
+    }).join("");
+    wrap.querySelectorAll("[data-qty-plus]").forEach(b => b.addEventListener("click", () => changeQty(b.dataset.qtyPlus, 1)));
+    wrap.querySelectorAll("[data-qty-minus]").forEach(b => b.addEventListener("click", () => changeQty(b.dataset.qtyMinus, -1)));
+  }
+  document.getElementById("cartTotal").textContent = money(cartMoneyTotal());
+}
+
+document.getElementById("openCartBtn").addEventListener("click", openCart);
+document.getElementById("footerCartBtn").addEventListener("click", openCart);
+function openCart() {
+  renderCartItems();
+  document.getElementById("cartModal").classList.remove("hidden");
+}
+document.querySelectorAll("[data-close-cart]").forEach(el => el.addEventListener("click", () => {
+  document.getElementById("cartModal").classList.add("hidden");
+}));
+
+// ---------- SEND ORDER ----------
+document.getElementById("sendOrderBtn").addEventListener("click", () => {
+  const zona = getZonaValue();
+  const cliente = document.getElementById("clienteInput").value.trim();
+  if (!zona) return toast("Selecciona la zona del pedido.");
+  if (!cliente) return toast("Escribe el nombre del cliente/establecimiento.");
+  if (cartCountTotal() === 0) return toast("Agrega al menos un producto.");
+
+  const fecha = new Date().toLocaleDateString("es-CO");
+  let msg = `🧾 *Nuevo pedido - ${settings.businessName}*\n`;
+  msg += `📍 Zona: ${zona}\n🏪 Cliente: ${cliente}\n📅 Fecha: ${fecha}\n\n*Productos:*\n`;
+  Object.entries(cart).forEach(([id, qty]) => {
+    const p = products.find(x => x.id === id);
+    if (!p) return;
+    msg += `• ${p.name}${p.description ? " " + p.description : ""} x${qty} = ${money(p.price * qty)}\n`;
+  });
+  msg += `\n💰 *Total: ${money(cartMoneyTotal())}*`;
+
+  const url = `https://wa.me/${settings.whatsappNumber}?text=${encodeURIComponent(msg)}`;
+  window.open(url, "_blank");
+});
+
+// ---------- NOVEDAD ----------
+function renderNovedadProductOptions() {
+  const sel = document.getElementById("novProducto");
+  sel.innerHTML = products.filter(p => p.active !== false)
+    .map(p => `<option value="${p.id}">${p.name}${p.description ? " " + p.description : ""}</option>`).join("");
+}
+document.getElementById("openNovedadBtn").addEventListener("click", () => {
+  document.getElementById("novZona").value = getZonaValue() || "(sin definir arriba)";
+  document.getElementById("novCliente").value = document.getElementById("clienteInput").value.trim() || "(sin definir arriba)";
+  document.getElementById("novedadModal").classList.remove("hidden");
+});
+document.querySelectorAll("[data-close-novedad]").forEach(el => el.addEventListener("click", () => {
+  document.getElementById("novedadModal").classList.add("hidden");
+}));
+document.getElementById("sendNovedadBtn").addEventListener("click", () => {
+  const productId = document.getElementById("novProducto").value;
+  const p = products.find(x => x.id === productId);
+  if (!p) return toast("Selecciona un producto.");
+  const cantidad = document.getElementById("novCantidad").value || 1;
+  const motivo = document.getElementById("novMotivo").value;
+  const nota = document.getElementById("novNota").value.trim();
+  const zona = document.getElementById("novZona").value;
+  const cliente = document.getElementById("novCliente").value;
+
+  let msg = `⚠️ *Reporte de novedad - ${settings.businessName}*\n`;
+  msg += `📍 Zona: ${zona}\n🏪 Cliente: ${cliente}\n`;
+  msg += `📦 Producto: ${p.name}${p.description ? " " + p.description : ""}\n`;
+  msg += `Cantidad: ${cantidad}\nMotivo: ${motivo}\n`;
+  if (nota) msg += `Nota: ${nota}\n`;
+
+  const url = `https://wa.me/${settings.whatsappNumber}?text=${encodeURIComponent(msg)}`;
+  window.open(url, "_blank");
+  document.getElementById("novedadModal").classList.add("hidden");
+});
+
+// ---------- ADMIN: LOGIN ----------
+document.getElementById("openAdminBtn").addEventListener("click", () => {
+  document.getElementById("adminModal").classList.remove("hidden");
+});
+document.querySelectorAll("[data-close-admin]").forEach(el => el.addEventListener("click", () => {
+  document.getElementById("adminModal").classList.add("hidden");
+}));
+
+document.getElementById("loginBtn").addEventListener("click", async () => {
+  const email = document.getElementById("loginEmail").value.trim();
+  const password = document.getElementById("loginPassword").value;
+  const errEl = document.getElementById("loginError");
+  errEl.classList.add("hidden");
+  try {
+    await signInWithEmailAndPassword(auth, email, password);
+  } catch (e) {
+    errEl.textContent = "Correo o contraseña incorrectos.";
+    errEl.classList.remove("hidden");
+  }
+});
+document.getElementById("logoutBtn").addEventListener("click", () => signOut(auth));
+
+onAuthStateChanged(auth, (user) => {
+  currentUser = user;
+  document.getElementById("adminLogin").classList.toggle("hidden", !!user);
+  document.getElementById("adminDashboard").classList.toggle("hidden", !user);
+  document.getElementById("logoutBtn").classList.toggle("hidden", !user);
+});
+
+// ---------- ADMIN: TABS ----------
+document.querySelectorAll(".admin-tab").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".admin-tab").forEach(b => b.classList.remove("border-green-700", "text-green-700"));
+    document.querySelectorAll(".admin-tab").forEach(b => b.classList.add("border-transparent", "text-gray-500"));
+    btn.classList.add("border-green-700", "text-green-700");
+    btn.classList.remove("border-transparent", "text-gray-500");
+    document.querySelectorAll(".admin-tab-panel").forEach(p => p.classList.add("hidden"));
+    document.getElementById("tab" + btn.dataset.adminTab[0].toUpperCase() + btn.dataset.adminTab.slice(1)).classList.remove("hidden");
+  });
+});
+
+// ---------- ADMIN: CATEGORIES ----------
+function renderAdminCategoryOptions() {
+  document.getElementById("prodCategory").innerHTML =
+    categories.map(c => `<option value="${c.id}">${c.name}</option>`).join("");
+}
+function renderAdminCategoryList() {
+  document.getElementById("adminCategoryList").innerHTML = categories.map(c => `
+    <div class="flex items-center justify-between bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
+      <span class="text-sm">${c.name}</span>
+      <button data-del-cat="${c.id}" class="text-xs text-red-500 hover:underline">Eliminar</button>
+    </div>
+  `).join("");
+  document.querySelectorAll("[data-del-cat]").forEach(b => b.addEventListener("click", async () => {
+    const id = b.dataset.delCat;
+    if (products.some(p => p.categoryId === id)) {
+      return toast("No puedes eliminar una categoría con productos. Muévelos o elimínalos primero.");
+    }
+    if (!confirm("¿Eliminar esta categoría?")) return;
+    await deleteDoc(doc(db, "categories", id));
+  }));
+}
+document.getElementById("addCategoryBtn").addEventListener("click", async () => {
+  const input = document.getElementById("newCategoryInput");
+  const name = input.value.trim();
+  if (!name) return;
+  const id = slugify(name);
+  await setDoc(doc(db, "categories", id), { name, order: categories.length });
+  input.value = "";
+});
+
+// ---------- ADMIN: PRODUCTS ----------
+function renderAdminProductList() {
+  const search = document.getElementById("adminProductSearch").value.trim().toLowerCase();
+  let list = products;
+  if (search) list = list.filter(p => p.name.toLowerCase().includes(search));
+  document.getElementById("adminProductList").innerHTML = list.map(p => {
+    const cat = categories.find(c => c.id === p.categoryId);
+    return `
+    <div class="flex items-center justify-between gap-3 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
+      <div class="min-w-0">
+        <p class="text-sm font-medium truncate">${p.name} ${p.active === false ? '<span class="text-gray-400">(oculto)</span>' : ""}</p>
+        <p class="text-xs text-gray-400 truncate">${cat ? cat.name : "Sin categoría"} · ${money(p.price)}</p>
+      </div>
+      <div class="flex items-center gap-2 shrink-0">
+        <button data-edit-prod="${p.id}" class="text-xs text-blue-600 hover:underline">Editar</button>
+        <button data-del-prod="${p.id}" class="text-xs text-red-500 hover:underline">Eliminar</button>
+      </div>
+    </div>`;
+  }).join("");
+  document.querySelectorAll("[data-edit-prod]").forEach(b => b.addEventListener("click", () => openProductForm(b.dataset.editProd)));
+  document.querySelectorAll("[data-del-prod]").forEach(b => b.addEventListener("click", async () => {
+    if (!confirm("¿Eliminar este producto?")) return;
+    await deleteDoc(doc(db, "products", b.dataset.delProd));
+  }));
+}
+document.getElementById("adminProductSearch").addEventListener("input", renderAdminProductList);
+
+function openProductForm(productId) {
+  const form = document.getElementById("adminProductForm");
+  form.classList.remove("hidden");
+  if (productId) {
+    const p = products.find(x => x.id === productId);
+    document.getElementById("prodEditId").value = p.id;
+    document.getElementById("prodName").value = p.name;
+    document.getElementById("prodDesc").value = p.description || "";
+    document.getElementById("prodPrice").value = p.price;
+    document.getElementById("prodCategory").value = p.categoryId;
+    document.getElementById("prodActive").checked = p.active !== false;
+  } else {
+    document.getElementById("prodEditId").value = "";
+    document.getElementById("prodName").value = "";
+    document.getElementById("prodDesc").value = "";
+    document.getElementById("prodPrice").value = "";
+    document.getElementById("prodActive").checked = true;
+  }
+}
+document.getElementById("newProductBtn").addEventListener("click", () => openProductForm(null));
+document.getElementById("cancelProductBtn").addEventListener("click", () => {
+  document.getElementById("adminProductForm").classList.add("hidden");
+});
+document.getElementById("saveProductBtn").addEventListener("click", async () => {
+  const name = document.getElementById("prodName").value.trim();
+  const description = document.getElementById("prodDesc").value.trim();
+  const price = Number(document.getElementById("prodPrice").value);
+  const categoryId = document.getElementById("prodCategory").value;
+  const active = document.getElementById("prodActive").checked;
+  if (!name || !price || !categoryId) return toast("Completa nombre, precio y categoría.");
+  const editId = document.getElementById("prodEditId").value;
+  const id = editId || (slugify(name) + "-" + Date.now().toString(36));
+  await setDoc(doc(db, "products", id), { name, description, price, categoryId, active });
+  document.getElementById("adminProductForm").classList.add("hidden");
+  toast("Producto guardado.");
+});
+
+// ---------- ADMIN: SETTINGS ----------
+document.getElementById("saveSettingsBtn").addEventListener("click", async () => {
+  const businessName = document.getElementById("setBusinessName").value.trim();
+  const whatsappNumber = document.getElementById("setWhatsapp").value.trim();
+  const zones = document.getElementById("setZonas").value.split(",").map(z => z.trim()).filter(Boolean);
+  await setDoc(doc(db, "settings", "general"), { businessName, whatsappNumber, zones });
+  toast("Ajustes guardados.");
+});
+
+// ---------- ADMIN: SEED ----------
+document.getElementById("seedBtn").addEventListener("click", async () => {
+  if (!confirm("¿Cargar el catálogo inicial de " + SEED_PRODUCTS.length + " productos? No se duplican si ya existen.")) return;
+  const batch = writeBatch(db);
+  SEED_CATEGORIES.forEach((name, i) => {
+    batch.set(doc(db, "categories", slugify(name)), { name, order: i });
+  });
+  SEED_PRODUCTS.forEach(([catName, name, description, price]) => {
+    const id = slugify(catName) + "__" + slugify(name);
+    batch.set(doc(db, "products", id), { name, description, price, categoryId: slugify(catName), active: true });
+  });
+  const settingsSnap = await getDocs(collection(db, "categories"));
+  if (settingsSnap.empty) {
+    batch.set(doc(db, "settings", "general"), DEFAULT_SETTINGS);
+  }
+  await batch.commit();
+  toast("Catálogo cargado correctamente.");
+});
+</script>
+</body>
+</html>
