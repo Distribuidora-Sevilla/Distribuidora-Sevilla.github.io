@@ -29,19 +29,23 @@
 <!-- TOAST -->
 <div id="toast" class="fixed bottom-24 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-sm px-4 py-2 rounded-lg shadow-lg z-[90] hidden"></div>
 
-<!-- HEADER -->
-<header class="bg-green-700 text-white sticky top-0 z-30 shadow">
-  <div class="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
-    <div class="min-w-0">
-      <h1 id="businessNameEl" class="text-lg font-bold leading-tight truncate">CMG Distribuidora Sevilla</h1>
-      <p class="text-xs text-green-100">Catálogo y pedidos para tiendas</p>
-    </div>
-    <button id="openCartBtn" class="relative bg-white/15 hover:bg-white/25 rounded-full h-11 w-11 flex items-center justify-center text-xl shrink-0">
-      🛒
-      <span id="cartCount" class="absolute -top-1 -right-1 bg-yellow-400 text-green-900 text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center hidden">0</span>
-    </button>
+<!-- HEADER / PORTADA -->
+<header class="relative bg-gradient-to-b from-green-950 via-green-900 to-green-800 text-white">
+  <button id="openCartBtn" class="absolute top-4 right-4 z-10 bg-white/15 hover:bg-white/25 rounded-full h-11 w-11 flex items-center justify-center text-xl">
+    🛒
+    <span id="cartCount" class="absolute -top-1 -right-1 bg-yellow-400 text-green-900 text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center hidden">0</span>
+  </button>
+  <div class="max-w-5xl mx-auto px-4 pt-8 pb-10 flex flex-col items-center text-center">
+    <img src="https://i.postimg.cc/tgyBHcFt/logo-sevilla.png" alt="Logo CMG Distribuidora Sevilla" class="h-24 w-24 object-contain rounded-full bg-white p-2 shadow-lg mb-3">
+    <h1 id="businessNameEl" class="text-2xl font-extrabold leading-tight">CMG Distribuidora Sevilla</h1>
+    <p class="text-sm text-green-100 mt-1">Catálogo y pedidos para tiendas y supermercados</p>
   </div>
 </header>
+
+<!-- BANNER -->
+<div class="max-w-5xl mx-auto px-4 -mt-6 relative z-10">
+  <img src="https://i.postimg.cc/kG8jCPY6/banner-sevilla.png" alt="Banner promocional Distribuidora Sevilla" class="w-full rounded-xl shadow-lg object-cover">
+</div>
 
 <!-- DATOS DEL PEDIDO -->
 <div class="max-w-5xl mx-auto px-4 pt-4">
